@@ -86,5 +86,5 @@ func main() {
 	r.HandleFunc("/v1", notAllowedHandler)
 	r.HandleFunc("/v1/{key}", notAllowedHandler)
 
-	log.Fatal(http.ListenAndServe(":8081", r))
+	log.Fatal(http.ListenAndServe(":8080", r))
 }

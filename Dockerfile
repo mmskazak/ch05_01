@@ -4,7 +4,7 @@
 
 # Stage 1: Compile the binary in a containerized Golang environment
 #
-FROM golang:1.18 as builg
+FROM golang:1.18 as build
 
 # Copy the source files from the host
 COPY . /src
@@ -13,15 +13,15 @@ COPY . /src
 WORKDIR /src
 
 # Build the binary!
-RUN go build -o kvs
+RUN CGO_ENABLED=0 GOOS=linux go build -o kvs
 
 # Stage 2: Build the Key-Value Store image proper
 #
 # Use a "scratch" image, which contains no distribution files
-#FROM scratch as image
+FROM scratch as image
 
 # Copy the binary from the build container
-#COPY --from=build /src/kvs .
+COPY --from=build /src/kvs /
 
 # If you're using TLS, copy the, copy the .pem files too
 #COPY --from=build /src/*.pem .
@@ -29,5 +29,8 @@ RUN go build -o kvs
 # Tell Docker we'll be using port 8080
 EXPOSE 8080
 
+#Set workdir
+WORKDIR /
+
 # Tell Docker to execute this command on a docker run
-CMD ["/src/kvs"]
+CMD ["/kvs"]

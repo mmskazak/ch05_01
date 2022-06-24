@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"log"
 	"net/url"
 	"os"
 	"sync"
@@ -47,7 +48,7 @@ func (l *TransactionLogger) Err() <-chan error {
 
 func NewTransactionLogger(filename string) (*TransactionLogger, error) {
 	var err error
-	var l TransactionLogger = TransactionLogger{wg: &sync.WaitGroup{}}
+	l := TransactionLogger{wg: &sync.WaitGroup{}}
 
 	//Open the transaction log file for reading and writing
 	l.file, err = os.OpenFile(filename, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0755)
@@ -58,22 +59,24 @@ func NewTransactionLogger(filename string) (*TransactionLogger, error) {
 	return &l, nil
 }
 
-func (l TransactionLogger) Run() {
+func (l *TransactionLogger) Run() {
 	events := make(chan Event, 16)
 	l.events = events
 
 	errors := make(chan error, 1)
 	l.errors = errors
 
+	log.Println("log events", l)
+
 	// Start retrieving events from the events channel and writing them
 	// to the transaction log
 	go func() {
 		for e := range events {
 			l.lastSequence++
-
+			log.Println("l.lastSequence", l.lastSequence)
 			_, err := fmt.Fprintf(
 				l.file,
-				"%d\t%d\t%s\t%s\t",
+				"%d\t%d\t%s\t%s\n",
 				l.lastSequence, e.EventType, e.Key, e.Value)
 
 			if err != nil {
@@ -83,10 +86,21 @@ func (l TransactionLogger) Run() {
 			l.wg.Done()
 		}
 	}()
+	log.Println("transact run()")
 }
 
 func (l *TransactionLogger) Wait() {
 	l.wg.Wait()
+}
+
+func (l *TransactionLogger) Close() error {
+	l.wg.Wait()
+
+	if l.events != nil {
+		close(l.events)
+	}
+
+	return l.file.Close()
 }
 
 func (l *TransactionLogger) ReadEvents() (<-chan Event, <-chan error) {
@@ -102,9 +116,10 @@ func (l *TransactionLogger) ReadEvents() (<-chan Event, <-chan error) {
 
 		for scaner.Scan() {
 			line := scaner.Text()
+			fmt.Println(line)
 
 			fmt.Sscanf(
-				line, "%d\t%d\t%s\t%s\t",
+				line, "%d\t%d\t%s\t%s\n",
 				&e.Sequence, &e.EventType, &e.Key, &e.Value)
 
 			if l.lastSequence >= e.Sequence {

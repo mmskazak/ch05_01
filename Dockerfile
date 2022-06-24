@@ -18,7 +18,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o kvs
 # Stage 2: Build the Key-Value Store image proper
 #
 # Use a "scratch" image, which contains no distribution files
-FROM scratch as image
+FROM ubuntu as image
 
 # Copy the binary from the build container
 COPY --from=build /src/kvs /
